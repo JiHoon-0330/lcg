@@ -111,53 +111,48 @@ export async function issuesCommand(options: {
   issueChoices.push({ name: "Exit", value: EXIT_VALUE });
 
   // Issue selection loop (allows "Back" from action select)
-  try {
-    while (true) {
-      const selectedIssue = await select({
-        message: "Select an issue",
-        choices: issueChoices,
-        pageSize: 14,
-      });
+  while (true) {
+    const selectedIssue = await select({
+      message: "Select an issue",
+      choices: issueChoices,
+      pageSize: 14,
+    });
 
-      if (selectedIssue === EXIT_VALUE) return;
+    if (selectedIssue === EXIT_VALUE) return;
 
-      const hasWorktree = activeWorktrees.has(selectedIssue);
-      const actionChoices: Array<{ name: string; value: string }> = [];
+    const hasWorktree = activeWorktrees.has(selectedIssue);
+    const actionChoices: Array<{ name: string; value: string }> = [];
 
-      if (hasWorktree) {
-        actionChoices.push({ name: "work", value: "work" });
-        actionChoices.push({ name: "done", value: "done" });
-        actionChoices.push({ name: "clean", value: "clean" });
-      } else {
-        actionChoices.push({ name: "start", value: "start" });
-      }
-      actionChoices.push({ name: "Back", value: BACK_VALUE });
-
-      const selectedAction = await select({
-        message: `Action for ${chalk.cyan(selectedIssue)}`,
-        choices: actionChoices,
-      });
-
-      if (selectedAction === BACK_VALUE) continue;
-
-      switch (selectedAction) {
-        case "start":
-          await startCommand(selectedIssue, {});
-          break;
-        case "work":
-          await workCommand(selectedIssue);
-          break;
-        case "done":
-          await doneCommand(selectedIssue);
-          break;
-        case "clean":
-          await cleanCommand(selectedIssue);
-          break;
-      }
-      return;
+    if (hasWorktree) {
+      actionChoices.push({ name: "work", value: "work" });
+      actionChoices.push({ name: "done", value: "done" });
+      actionChoices.push({ name: "clean", value: "clean" });
+    } else {
+      actionChoices.push({ name: "start", value: "start" });
     }
-  } catch (error) {
-    if (error instanceof Error && error.name === "ExitPromptError") return;
-    throw error;
+    actionChoices.push({ name: "Back", value: BACK_VALUE });
+
+    const selectedAction = await select({
+      message: `Action for ${chalk.cyan(selectedIssue)}`,
+      choices: actionChoices,
+    });
+
+    if (selectedAction === BACK_VALUE) continue;
+
+    switch (selectedAction) {
+      case "start":
+        await startCommand(selectedIssue, {});
+        break;
+      case "work":
+        await workCommand(selectedIssue);
+        break;
+      case "done":
+        await doneCommand(selectedIssue);
+        break;
+      case "clean":
+        await cleanCommand(selectedIssue);
+        break;
+    }
+    return;
   }
 }

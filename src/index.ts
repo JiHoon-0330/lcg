@@ -76,4 +76,9 @@ program
   .description("Pull latest changes and rebuild LCG")
   .action(updateCommand);
 
-program.parse();
+program.parseAsync().catch((error) => {
+  if (error instanceof Error && error.name === "ExitPromptError") {
+    process.exit(0);
+  }
+  throw error;
+});

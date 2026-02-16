@@ -33,15 +33,24 @@ export async function createWorktree(
   // Fetch latest from remote
   await git.fetch();
 
-  // Create worktree with a new branch based on baseBranch
-  await git.raw([
-    "worktree",
-    "add",
-    worktreePath,
-    "-b",
-    branchName,
-    `origin/${baseBranch}`,
-  ]);
+  // Check if branch already exists locally
+  const branches = await git.branchLocal();
+  const branchExists = branches.all.includes(branchName);
+
+  if (branchExists) {
+    // Use existing branch
+    await git.raw(["worktree", "add", worktreePath, branchName]);
+  } else {
+    // Create worktree with a new branch based on baseBranch
+    await git.raw([
+      "worktree",
+      "add",
+      worktreePath,
+      "-b",
+      branchName,
+      `origin/${baseBranch}`,
+    ]);
+  }
 
   return worktreePath;
 }
@@ -52,19 +61,22 @@ export async function removeWorktree(
   deleteBranch?: boolean,
 ): Promise<void> {
   const git = getGit(repoRoot);
-  await git.raw(["worktree", "remove", worktreePath, "--force"]);
 
+  // Resolve branch name before removing the worktree
+  let branchName: string | null = null;
   if (deleteBranch) {
-    // Extract branch name from worktree path
-    const worktreeGit = getGit(repoRoot);
     const worktrees = await listWorktrees(repoRoot);
     const wt = worktrees.find((w) => w.path === worktreePath);
-    if (wt?.branch) {
-      try {
-        await worktreeGit.deleteLocalBranch(wt.branch, true);
-      } catch {
-        // Branch may not exist anymore
-      }
+    branchName = wt?.branch ?? null;
+  }
+
+  await git.raw(["worktree", "remove", worktreePath, "--force"]);
+
+  if (branchName) {
+    try {
+      await git.deleteLocalBranch(branchName, true);
+    } catch {
+      // Branch may not exist anymore
     }
   }
 }

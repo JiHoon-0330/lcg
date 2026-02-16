@@ -63,13 +63,7 @@ export async function doneCommand(issueId: string): Promise<void> {
   // 5. Create PR using gh CLI
   const prSpinner = ora("Creating pull request...").start();
   try {
-    const prBody = [
-      `## ${issue.identifier} - ${issue.title}`,
-      "",
-      issue.description ?? "",
-      "",
-      `Linear: ${issue.url}`,
-    ].join("\n");
+    const prBody = issue.url;
 
     const result = await execaCommand(
       `gh pr create --title "${issue.identifier} ${issue.title}" --body "${prBody.replace(/"/g, '\\"')}" --base ${projectConfig.baseBranch} --head ${issue.branchName}`,

@@ -1,4 +1,3 @@
-import { input, confirm } from "@inquirer/prompts";
 import chalk from "chalk";
 import ora from "ora";
 import { execaCommand } from "execa";
@@ -11,6 +10,7 @@ import {
 } from "../lib/config.js";
 import { initLinearClient, getIssue, updateIssueState } from "../lib/linear.js";
 import { createWorktree, worktreeExists, getWorktreeDir } from "../lib/git.js";
+import { openClaudeSession } from "../lib/claude.js";
 
 export function renderClaudeMd(
   template: string,
@@ -20,7 +20,6 @@ export function renderClaudeMd(
     description?: string;
     comments: string[];
   },
-  designNotes: string,
 ): string {
   return template
     .replace(/\{\{identifier\}\}/g, issue.identifier)
@@ -34,17 +33,10 @@ export function renderClaudeMd(
       issue.comments.length > 0
         ? issue.comments.map((c, i) => `${i + 1}. ${c}`).join("\n")
         : "No comments",
-    )
-    .replace(
-      /\{\{designNotes\}\}/g,
-      designNotes || "No additional design notes",
     );
 }
 
-export async function startCommand(
-  issueId: string,
-  options: { skipDesign?: boolean },
-): Promise<void> {
+export async function startCommand(issueId: string): Promise<void> {
   const globalConfig = ensureGlobalConfig();
   initLinearClient(globalConfig.linearApiKey);
 
@@ -54,7 +46,6 @@ export async function startCommand(
     process.exit(1);
   }
 
-  const rawIssueId = issueId;
   issueId = resolveIssueId(projectConfig, issueId);
 
   // 1. Fetch issue
@@ -91,22 +82,7 @@ export async function startCommand(
     return;
   }
 
-  // 4. Design notes (optional)
-  let designNotes = "";
-  if (!options.skipDesign) {
-    const wantDesign = await confirm({
-      message: "Would you like to add design notes?",
-      default: false,
-    });
-    if (wantDesign) {
-      designNotes = await input({
-        message:
-          "Enter design notes (implementation direction, tech stack, caveats, etc.):",
-      });
-    }
-  }
-
-  // 5. Create worktree
+  // 4. Create worktree
   const branchName = issue.branchName;
   const createSpinner = ora("Creating worktree...").start();
   try {
@@ -144,12 +120,8 @@ export async function startCommand(
     }
   }
 
-  // 7. Generate CLAUDE.md
-  const claudeMd = renderClaudeMd(
-    projectConfig.claudeMdTemplate,
-    issue,
-    designNotes,
-  );
+  // 6. Generate CLAUDE.md
+  const claudeMd = renderClaudeMd(projectConfig.claudeMdTemplate, issue);
   await writeFile(join(worktreePath, "CLAUDE.md"), claudeMd, "utf-8");
   console.log(chalk.green("CLAUDE.md generated with issue context"));
 
@@ -161,7 +133,7 @@ export async function startCommand(
     console.log(chalk.yellow(`Could not update issue state: ${String(err)}`));
   }
 
-  console.log(
-    chalk.bold(`\nReady! Run \`lcg work ${rawIssueId}\` to start coding.`),
-  );
+  // 8. Open Claude session
+  console.log(chalk.cyan(`\nOpening Claude session in: ${worktreePath}\n`));
+  await openClaudeSession(worktreePath);
 }

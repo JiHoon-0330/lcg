@@ -35,7 +35,6 @@ program
   .description(
     "Create a worktree and branch for an issue (e.g. 123 or ENG-123)",
   )
-  .option("--skip-design", "Skip design notes prompt")
   .action(startCommand);
 
 program

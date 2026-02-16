@@ -10,101 +10,63 @@ const DEFAULT_TEMPLATE = [
   "## Comments",
   "{{comments}}",
   "",
-  "## Design Notes",
-  "{{designNotes}}",
-  "",
   "## Instructions",
   "- Implement the changes as described",
 ].join("\n");
 
 describe("renderClaudeMd", () => {
   it("should replace all template variables", () => {
-    const result = renderClaudeMd(
-      DEFAULT_TEMPLATE,
-      {
-        identifier: "LIN-123",
-        title: "Add user auth",
-        description: "Implement OAuth2 flow",
-        comments: ["Looks good", "Need tests"],
-      },
-      "Use JWT tokens",
-    );
+    const result = renderClaudeMd(DEFAULT_TEMPLATE, {
+      identifier: "LIN-123",
+      title: "Add user auth",
+      description: "Implement OAuth2 flow",
+      comments: ["Looks good", "Need tests"],
+    });
 
     expect(result).toContain("# LIN-123 - Add user auth");
     expect(result).toContain("Implement OAuth2 flow");
     expect(result).toContain("1. Looks good");
     expect(result).toContain("2. Need tests");
-    expect(result).toContain("Use JWT tokens");
   });
 
   it("should use fallback when description is undefined", () => {
-    const result = renderClaudeMd(
-      DEFAULT_TEMPLATE,
-      {
-        identifier: "LIN-1",
-        title: "Test",
-        description: undefined,
-        comments: [],
-      },
-      "",
-    );
+    const result = renderClaudeMd(DEFAULT_TEMPLATE, {
+      identifier: "LIN-1",
+      title: "Test",
+      description: undefined,
+      comments: [],
+    });
 
     expect(result).toContain("No description provided");
   });
 
   it("should use fallback when comments are empty", () => {
-    const result = renderClaudeMd(
-      DEFAULT_TEMPLATE,
-      {
-        identifier: "LIN-1",
-        title: "Test",
-        comments: [],
-      },
-      "",
-    );
+    const result = renderClaudeMd(DEFAULT_TEMPLATE, {
+      identifier: "LIN-1",
+      title: "Test",
+      comments: [],
+    });
 
     expect(result).toContain("No comments");
   });
 
-  it("should use fallback when design notes are empty", () => {
-    const result = renderClaudeMd(
-      DEFAULT_TEMPLATE,
-      {
-        identifier: "LIN-1",
-        title: "Test",
-        comments: [],
-      },
-      "",
-    );
-
-    expect(result).toContain("No additional design notes");
-  });
-
   it("should handle multiple occurrences of same placeholder", () => {
     const template = "{{title}} is {{title}}";
-    const result = renderClaudeMd(
-      template,
-      {
-        identifier: "X-1",
-        title: "Hello",
-        comments: [],
-      },
-      "",
-    );
+    const result = renderClaudeMd(template, {
+      identifier: "X-1",
+      title: "Hello",
+      comments: [],
+    });
 
     expect(result).toBe("Hello is Hello");
   });
 
   it("should number comments sequentially", () => {
-    const result = renderClaudeMd(
-      "{{comments}}",
-      {
-        identifier: "X-1",
-        title: "T",
-        comments: ["First", "Second", "Third"],
-      },
-      "",
-    );
+    const result = renderClaudeMd("{{comments}}", {
+      identifier: "X-1",
+      title: "T",
+      comments: ["First", "Second", "Third"],
+    });
 
     expect(result).toBe("1. First\n2. Second\n3. Third");
   });

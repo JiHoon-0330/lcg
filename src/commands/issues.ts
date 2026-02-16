@@ -141,7 +141,7 @@ export async function issuesCommand(options: {
 
     switch (selectedAction) {
       case "start":
-        await startCommand(selectedIssue, {});
+        await startCommand(selectedIssue);
         break;
       case "work":
         await workCommand(selectedIssue);

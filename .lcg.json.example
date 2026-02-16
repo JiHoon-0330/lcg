@@ -1,0 +1,7 @@
+{
+  "teamId": "TEAM-ID",
+  "projectId": "PROJECT-ID",
+  "branchPrefix": "",
+  "baseBranch": "main",
+  "claudeMdTemplate": "# {{identifier}} - {{title}}\n\n## Issue Description\n{{description}}\n\n## Comments\n{{comments}}\n\n## Design Notes\n{{designNotes}}\n\n## Instructions\n- Read the issue description and design notes carefully\n- Implement the changes as described\n- Write tests for new functionality\n- Follow existing code patterns and conventions"
+}

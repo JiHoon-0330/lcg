@@ -1,0 +1,58 @@
+{
+  "name": "lcg",
+  "version": "0.1.0",
+  "description": "Linear + Claude + Git CLI - Automate your development workflow",
+  "type": "module",
+  "bin": {
+    "lcg": "./dist/index.js"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write src/",
+    "format:check": "prettier --check src/",
+    "test": "vitest run --reporter=dot",
+    "test:watch": "vitest --reporter=dot",
+    "prepare": "husky"
+  },
+  "keywords": [
+    "linear",
+    "claude",
+    "git",
+    "worktree",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "packageManager": "pnpm@10.18.0",
+  "dependencies": {
+    "@inquirer/prompts": "^8.2.1",
+    "@linear/sdk": "^75.0.0",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "conf": "^15.1.0",
+    "execa": "^9.6.1",
+    "ora": "^9.3.0",
+    "simple-git": "^3.31.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.2.3",
+    "eslint": "^10.0.0",
+    "husky": "^9.1.7",
+    "prettier": "^3.8.1",
+    "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.55.0",
+    "vitest": "^4.0.18"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

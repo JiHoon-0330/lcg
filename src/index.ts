@@ -7,6 +7,7 @@ import { statusCommand } from "./commands/status.js";
 import { doneCommand } from "./commands/done.js";
 import { cleanCommand } from "./commands/clean.js";
 import { updateCommand } from "./commands/update.js";
+import { configCommand } from "./commands/config.js";
 
 const program = new Command();
 
@@ -55,6 +56,14 @@ program
   .command("clean <issue-id>")
   .description("Remove worktree and optionally delete branch")
   .action(cleanCommand);
+
+program
+  .command("config")
+  .alias("cfg")
+  .description("Open config files in default editor")
+  .option("-g, --global", "Open global config only")
+  .option("-p, --project", "Open project config only")
+  .action(configCommand);
 
 program
   .command("update")

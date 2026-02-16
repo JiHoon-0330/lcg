@@ -1,4 +1,4 @@
-import { execaCommand } from "execa";
+import { execaCommand, execa } from "execa";
 
 export async function openClaudeSession(
   worktreePath: string,
@@ -13,6 +13,17 @@ export async function openClaudeSession(
     cwd: worktreePath,
     stdio: "inherit",
   });
+}
+
+export async function isClaudeSessionActive(
+  worktreePath: string,
+): Promise<boolean> {
+  try {
+    const { stdout } = await execa("pgrep", ["-af", "claude"]);
+    return stdout.split("\n").some((line) => line.includes(worktreePath));
+  } catch {
+    return false;
+  }
 }
 
 export function buildDesignPrompt(

@@ -1,6 +1,7 @@
 import { input, confirm } from "@inquirer/prompts";
 import chalk from "chalk";
 import ora from "ora";
+import { execaCommand } from "execa";
 import { writeFile, mkdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { ensureGlobalConfig, getProjectConfig } from "../lib/config.js";
@@ -117,7 +118,25 @@ export async function startCommand(
     process.exit(1);
   }
 
-  // 6. Generate CLAUDE.md
+  // 6. Run post-setup script
+  if (projectConfig.postSetup) {
+    const setupSpinner = ora(
+      `Running post-setup: ${projectConfig.postSetup}`,
+    ).start();
+    try {
+      await execaCommand(projectConfig.postSetup, {
+        cwd: worktreePath,
+        stdio: "inherit",
+      });
+      setupSpinner.succeed("Post-setup script completed");
+    } catch (err) {
+      setupSpinner.warn(
+        `Post-setup script failed: ${String(err)}. Continuing...`,
+      );
+    }
+  }
+
+  // 7. Generate CLAUDE.md
   const claudeMd = renderClaudeMd(
     projectConfig.claudeMdTemplate,
     issue,

@@ -147,6 +147,16 @@ export async function initCommand(): Promise<void> {
       ].join("\n"),
   };
 
+  // 7. Post-setup script
+  const postSetup = await input({
+    message:
+      "Post-setup script (워크트리 생성 후 실행할 명령어, e.g. pnpm install, npm ci):",
+    default: existingProject?.postSetup ?? "",
+  });
+  if (postSetup.trim()) {
+    projectConfig.postSetup = postSetup.trim();
+  }
+
   await saveProjectConfig(resolvedWorktreeDir, projectConfig);
 
   console.log(chalk.green(`\nGlobal config: ${getGlobalConfigPath()}`));

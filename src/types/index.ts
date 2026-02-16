@@ -10,6 +10,7 @@ export interface ProjectConfig {
   branchPrefix: string;
   baseBranch: string;
   claudeMdTemplate: string;
+  postSetup?: string;
 }
 
 export interface LcgIssue {

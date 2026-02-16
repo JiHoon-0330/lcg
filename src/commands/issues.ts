@@ -1,8 +1,14 @@
 import chalk from "chalk";
 import ora from "ora";
+import { select, Separator } from "@inquirer/prompts";
 import { ensureGlobalConfig, getProjectConfig } from "../lib/config.js";
 import { initLinearClient, getMyIssues } from "../lib/linear.js";
-import { getWorktreeStatus } from "../lib/git.js";
+import { getWorktreeStatus, getWorktreeDir } from "../lib/git.js";
+import { isClaudeSessionActive } from "../lib/claude.js";
+import { startCommand } from "./start.js";
+import { workCommand } from "./work.js";
+import { doneCommand } from "./done.js";
+import { cleanCommand } from "./clean.js";
 import type { LcgIssue } from "../types/index.js";
 
 const PRIORITY_COLORS: Record<string, (s: string) => string> = {
@@ -42,38 +48,116 @@ export async function issuesCommand(options: {
     return;
   }
 
-  // Check active worktrees
+  // Check active worktrees and claude sessions
   let activeWorktrees = new Set<string>();
+  const claudeActive = new Set<string>();
   try {
     const statuses = await getWorktreeStatus(
       globalConfig.repoPath,
       globalConfig.defaultWorktreeDir,
     );
     activeWorktrees = new Set(statuses.map((s) => s.issueId));
+    const checks = await Promise.all(
+      statuses.map(async (s) => {
+        const dir = getWorktreeDir(globalConfig.defaultWorktreeDir, s.issueId);
+        const active = await isClaudeSessionActive(dir);
+        return { issueId: s.issueId, active };
+      }),
+    );
+    for (const c of checks) {
+      if (c.active) claudeActive.add(c.issueId);
+    }
   } catch {
     // Ignore
   }
 
-  // Group by state
+  // Group by state (exclude Canceled, Duplicated)
+  const HIDDEN_STATES = new Set([
+    "Canceled",
+    "Cancelled",
+    "Duplicate",
+    "Duplicated",
+  ]);
   const grouped = new Map<string, LcgIssue[]>();
   for (const issue of issues) {
     const stateName = issue.state.name;
+    if (HIDDEN_STATES.has(stateName)) continue;
     if (!grouped.has(stateName)) grouped.set(stateName, []);
     grouped.get(stateName)!.push(issue);
   }
 
-  // Display
+  // Interactive mode
+  const EXIT_VALUE = "__exit__";
+  const BACK_VALUE = "__back__";
+
+  const issueChoices: Array<{ name: string; value: string } | Separator> = [];
   for (const [stateName, stateIssues] of grouped) {
-    console.log(chalk.bold(`\n${stateName}`));
+    issueChoices.push(new Separator(`── ${stateName} ──`));
     for (const issue of stateIssues) {
       const priorityColor = PRIORITY_COLORS[issue.priorityLabel] ?? chalk.white;
-      const worktreeIndicator = activeWorktrees.has(issue.identifier)
-        ? chalk.cyan(" ← worktree active")
-        : "";
-      console.log(
-        `  ${chalk.cyan(issue.identifier.padEnd(10))} ${issue.title.padEnd(40)} ${priorityColor(issue.priorityLabel)}${worktreeIndicator}`,
-      );
+      let indicator = "";
+      if (claudeActive.has(issue.identifier)) {
+        indicator = chalk.magenta(" ← claude active");
+      } else if (activeWorktrees.has(issue.identifier)) {
+        indicator = chalk.cyan(" ← worktree active");
+      }
+      issueChoices.push({
+        name: `${priorityColor(issue.priorityLabel.padEnd(12))} ${chalk.cyan(issue.identifier.padEnd(10))} ${issue.title}${indicator}`,
+        value: issue.identifier,
+      });
     }
   }
-  console.log();
+  issueChoices.push(new Separator(`── Exit ──`));
+  issueChoices.push({ name: "Exit", value: EXIT_VALUE });
+
+  // Issue selection loop (allows "Back" from action select)
+  try {
+    while (true) {
+      const selectedIssue = await select({
+        message: "Select an issue",
+        choices: issueChoices,
+        pageSize: 14,
+      });
+
+      if (selectedIssue === EXIT_VALUE) return;
+
+      const hasWorktree = activeWorktrees.has(selectedIssue);
+      const actionChoices: Array<{ name: string; value: string }> = [];
+
+      if (hasWorktree) {
+        actionChoices.push({ name: "work", value: "work" });
+        actionChoices.push({ name: "done", value: "done" });
+        actionChoices.push({ name: "clean", value: "clean" });
+      } else {
+        actionChoices.push({ name: "start", value: "start" });
+      }
+      actionChoices.push({ name: "Back", value: BACK_VALUE });
+
+      const selectedAction = await select({
+        message: `Action for ${chalk.cyan(selectedIssue)}`,
+        choices: actionChoices,
+      });
+
+      if (selectedAction === BACK_VALUE) continue;
+
+      switch (selectedAction) {
+        case "start":
+          await startCommand(selectedIssue, {});
+          break;
+        case "work":
+          await workCommand(selectedIssue);
+          break;
+        case "done":
+          await doneCommand(selectedIssue);
+          break;
+        case "clean":
+          await cleanCommand(selectedIssue);
+          break;
+      }
+      return;
+    }
+  } catch (error) {
+    if (error instanceof Error && error.name === "ExitPromptError") return;
+    throw error;
+  }
 }

@@ -80,33 +80,33 @@ export async function getMyIssues(
   if (statusFilter) {
     filter.state = { name: { eqIgnoreCase: statusFilter } };
   } else {
-    filter.state = { type: { nin: ["completed", "cancelled", "duplicated"] } };
+    filter.state = {
+      and: [{ type: { neq: "completed" } }, { type: { neq: "cancelled" } }],
+    };
   }
 
   const issues = await getLinearClient().issues({ filter });
-  const results: LcgIssue[] = [];
 
-  for (const issue of issues.nodes) {
-    const state = await issue.state;
-    const comments = await issue.comments();
-    const labels = await issue.labels();
-
-    results.push({
-      id: issue.id,
-      identifier: issue.identifier,
-      title: issue.title,
-      description: issue.description ?? undefined,
-      priority: issue.priority,
-      priorityLabel: issue.priorityLabel,
-      state: state
-        ? { id: state.id, name: state.name, type: state.type }
-        : { id: "", name: "Unknown", type: "unknown" },
-      branchName: issue.branchName,
-      url: issue.url,
-      comments: comments.nodes.map((c) => c.body),
-      labels: labels.nodes.map((l) => l.name),
-    });
-  }
+  const results = await Promise.all(
+    issues.nodes.map(async (issue) => {
+      const state = await issue.state;
+      return {
+        id: issue.id,
+        identifier: issue.identifier,
+        title: issue.title,
+        description: issue.description ?? undefined,
+        priority: issue.priority,
+        priorityLabel: issue.priorityLabel,
+        state: state
+          ? { id: state.id, name: state.name, type: state.type }
+          : { id: "", name: "Unknown", type: "unknown" },
+        branchName: issue.branchName,
+        url: issue.url,
+        comments: [] as string[],
+        labels: [] as string[],
+      } satisfies LcgIssue;
+    }),
+  );
 
   return results;
 }

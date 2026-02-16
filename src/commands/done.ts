@@ -1,7 +1,11 @@
 import chalk from "chalk";
 import ora from "ora";
 import { execaCommand } from "execa";
-import { ensureGlobalConfig, getProjectConfig } from "../lib/config.js";
+import {
+  ensureGlobalConfig,
+  getProjectConfig,
+  resolveIssueId,
+} from "../lib/config.js";
 import { initLinearClient, getIssue, updateIssueState } from "../lib/linear.js";
 import {
   getWorktreeDir,
@@ -19,6 +23,8 @@ export async function doneCommand(issueId: string): Promise<void> {
     console.log(chalk.red("Project not configured. Run `lcg init` first."));
     process.exit(1);
   }
+
+  issueId = resolveIssueId(projectConfig, issueId);
 
   // 1. Check worktree
   const worktreePath = getWorktreeDir(globalConfig.defaultWorktreeDir, issueId);

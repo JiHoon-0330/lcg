@@ -58,13 +58,16 @@ export async function initCommand(): Promise<void> {
     process.exit(1);
   }
 
-  const teamId = await select({
+  const selectedTeam = await select({
     message: "Select your Linear team:",
     choices: teams.map((t) => ({
       name: `${t.key} - ${t.name}`,
-      value: t.id,
+      value: t,
     })),
   });
+
+  const teamId = selectedTeam.id;
+  const teamKey = selectedTeam.key;
 
   // 3. Select user from team members
   const members = await getTeamMembers(teamId);
@@ -123,6 +126,7 @@ export async function initCommand(): Promise<void> {
   const existingProject = await getProjectConfig(resolvedWorktreeDir);
   const projectConfig: ProjectConfig = {
     teamId,
+    teamKey,
     branchPrefix: existingProject?.branchPrefix ?? "",
     baseBranch,
     claudeMdTemplate:

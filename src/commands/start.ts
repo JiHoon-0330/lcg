@@ -4,7 +4,11 @@ import ora from "ora";
 import { execaCommand } from "execa";
 import { writeFile, mkdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
-import { ensureGlobalConfig, getProjectConfig } from "../lib/config.js";
+import {
+  ensureGlobalConfig,
+  getProjectConfig,
+  resolveIssueId,
+} from "../lib/config.js";
 import { initLinearClient, getIssue, updateIssueState } from "../lib/linear.js";
 import { createWorktree, worktreeExists, getWorktreeDir } from "../lib/git.js";
 
@@ -49,6 +53,8 @@ export async function startCommand(
     console.log(chalk.red("Project not configured. Run `lcg init` first."));
     process.exit(1);
   }
+
+  issueId = resolveIssueId(projectConfig, issueId);
 
   // 1. Fetch issue
   const spinner = ora(`Fetching issue ${issueId}...`).start();

@@ -1,11 +1,20 @@
 import { confirm } from "@inquirer/prompts";
 import chalk from "chalk";
 import ora from "ora";
-import { ensureGlobalConfig } from "../lib/config.js";
+import {
+  ensureGlobalConfig,
+  getProjectConfig,
+  resolveIssueId,
+} from "../lib/config.js";
 import { getWorktreeDir, worktreeExists, removeWorktree } from "../lib/git.js";
 
 export async function cleanCommand(issueId: string): Promise<void> {
   const globalConfig = ensureGlobalConfig();
+
+  const projectConfig = await getProjectConfig(globalConfig.defaultWorktreeDir);
+  if (projectConfig) {
+    issueId = resolveIssueId(projectConfig, issueId);
+  }
 
   const worktreePath = getWorktreeDir(globalConfig.defaultWorktreeDir, issueId);
 

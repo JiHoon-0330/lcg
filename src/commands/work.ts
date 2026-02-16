@@ -2,7 +2,11 @@ import { select } from "@inquirer/prompts";
 import chalk from "chalk";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { ensureGlobalConfig, getProjectConfig } from "../lib/config.js";
+import {
+  ensureGlobalConfig,
+  getProjectConfig,
+  resolveIssueId,
+} from "../lib/config.js";
 import { initLinearClient, getIssue } from "../lib/linear.js";
 import { getWorktreeDir, worktreeExists } from "../lib/git.js";
 import { openClaudeSession, buildDesignPrompt } from "../lib/claude.js";
@@ -16,6 +20,8 @@ export async function workCommand(issueId: string): Promise<void> {
     console.log(chalk.red("Project not configured. Run `lcg init` first."));
     process.exit(1);
   }
+
+  issueId = resolveIssueId(projectConfig, issueId);
 
   // 1. Check worktree exists
   const worktreePath = getWorktreeDir(globalConfig.defaultWorktreeDir, issueId);

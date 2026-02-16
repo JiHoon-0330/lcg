@@ -32,13 +32,15 @@ program
 
 program
   .command("start <issue-id>")
-  .description("Create a worktree and branch for an issue")
+  .description(
+    "Create a worktree and branch for an issue (e.g. 123 or ENG-123)",
+  )
   .option("--skip-design", "Skip design notes prompt")
   .action(startCommand);
 
 program
   .command("work <issue-id>")
-  .description("Open a Claude session for an issue")
+  .description("Open a Claude session for an issue (e.g. 123 or ENG-123)")
   .action(workCommand);
 
 program
@@ -49,12 +51,16 @@ program
 
 program
   .command("done <issue-id>")
-  .description("Push branch, create PR, and update Linear status")
+  .description(
+    "Push branch, create PR, and update Linear status (e.g. 123 or ENG-123)",
+  )
   .action(doneCommand);
 
 program
   .command("clean <issue-id>")
-  .description("Remove worktree and optionally delete branch")
+  .description(
+    "Remove worktree and optionally delete branch (e.g. 123 or ENG-123)",
+  )
   .action(cleanCommand);
 
 program

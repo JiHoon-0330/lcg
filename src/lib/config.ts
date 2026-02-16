@@ -55,6 +55,16 @@ export async function saveProjectConfig(
   await writeFile(configPath, JSON.stringify(config, null, 2) + "\n", "utf-8");
 }
 
+export function resolveIssueId(
+  projectConfig: ProjectConfig,
+  issueId: string,
+): string {
+  if (/^\d+$/.test(issueId)) {
+    return `${projectConfig.teamKey}-${issueId}`;
+  }
+  return issueId;
+}
+
 export function ensureGlobalConfig(): GlobalConfig {
   const config = getGlobalConfig();
   if (!config.linearApiKey) {

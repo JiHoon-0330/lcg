@@ -7,6 +7,7 @@ export interface GlobalConfig {
 
 export interface ProjectConfig {
   teamId: string;
+  teamKey: string;
   branchPrefix: string;
   baseBranch: string;
   claudeMdTemplate: string;

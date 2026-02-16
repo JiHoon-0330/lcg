@@ -54,6 +54,7 @@ export async function startCommand(
     process.exit(1);
   }
 
+  const rawIssueId = issueId;
   issueId = resolveIssueId(projectConfig, issueId);
 
   // 1. Fetch issue
@@ -133,6 +134,7 @@ export async function startCommand(
       await execaCommand(projectConfig.postSetup, {
         cwd: worktreePath,
         stdio: "inherit",
+        shell: true,
       });
       setupSpinner.succeed("Post-setup script completed");
     } catch (err) {
@@ -160,6 +162,6 @@ export async function startCommand(
   }
 
   console.log(
-    chalk.bold(`\nReady! Run \`lcg work ${issueId}\` to start coding.`),
+    chalk.bold(`\nReady! Run \`lcg work ${rawIssueId}\` to start coding.`),
   );
 }

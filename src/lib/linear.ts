@@ -79,6 +79,8 @@ export async function getMyIssues(
   }
   if (statusFilter) {
     filter.state = { name: { eqIgnoreCase: statusFilter } };
+  } else {
+    filter.state = { type: { nin: ["completed", "cancelled", "duplicated"] } };
   }
 
   const issues = await getLinearClient().issues({ filter });

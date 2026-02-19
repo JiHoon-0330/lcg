@@ -141,10 +141,9 @@ export async function initCommand(): Promise<void> {
         "{{comments}}",
         "",
         "## Instructions",
-        "- Read the issue description carefully",
-        "- Implement the changes as described",
-        "- Write tests for new functionality",
+        "- 먼저 이슈 내용을 분석하고 사용자와 구현 계획을 논의한 뒤 작업을 시작하세요",
         "- Follow existing code patterns and conventions",
+        "- Write tests for new functionality",
       ].join("\n"),
   };
 

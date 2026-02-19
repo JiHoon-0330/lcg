@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import ora from "ora";
 import { execaCommand } from "execa";
-import { writeFile, mkdir } from "node:fs/promises";
+import { writeFile, mkdir, access } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import {
   ensureGlobalConfig,
@@ -9,7 +9,12 @@ import {
   resolveIssueId,
 } from "../lib/config.js";
 import { initLinearClient, getIssue, updateIssueState } from "../lib/linear.js";
-import { createWorktree, worktreeExists, getWorktreeDir } from "../lib/git.js";
+import {
+  createWorktree,
+  worktreeExists,
+  getWorktreeDir,
+  getGit,
+} from "../lib/git.js";
 import { openClaudeSession } from "../lib/claude.js";
 
 export function renderClaudeMd(
@@ -95,6 +100,11 @@ export async function startCommand(issueId: string): Promise<void> {
       projectConfig.baseBranch,
     );
     createSpinner.succeed(`Worktree created at: ${path}`);
+
+    // Push branch to set upstream tracking
+    const wtGit = getGit(path);
+    await wtGit.push(["-u", "origin", branchName]);
+    console.log(chalk.green(`Upstream set to origin/${branchName}`));
   } catch (err) {
     createSpinner.fail("Failed to create worktree");
     console.error(chalk.red(String(err)));
@@ -120,10 +130,34 @@ export async function startCommand(issueId: string): Promise<void> {
     }
   }
 
-  // 6. Generate CLAUDE.md
+  // 6. Generate CLAUDE.local.md with issue context
   const claudeMd = renderClaudeMd(projectConfig.claudeMdTemplate, issue);
-  await writeFile(join(worktreePath, "CLAUDE.md"), claudeMd, "utf-8");
-  console.log(chalk.green("CLAUDE.md generated with issue context"));
+  await writeFile(join(worktreePath, "CLAUDE.local.md"), claudeMd, "utf-8");
+
+  // Check if CLAUDE.md exists in the worktree (from base branch)
+  const claudeMdPath = join(worktreePath, "CLAUDE.md");
+  let hasClaudeMd = false;
+  try {
+    await access(claudeMdPath);
+    hasClaudeMd = true;
+  } catch {
+    // CLAUDE.md does not exist
+  }
+
+  if (hasClaudeMd) {
+    console.log(
+      chalk.green(
+        "CLAUDE.md found — CLAUDE.local.md에 이슈 컨텍스트를 추가했습니다",
+      ),
+    );
+  } else {
+    console.log(chalk.green("CLAUDE.local.md generated with issue context"));
+    console.log(
+      chalk.yellow(
+        "CLAUDE.md가 없습니다. 프로젝트 규칙을 담은 CLAUDE.md를 추가하면 Claude가 프로젝트 컨벤션을 더 잘 따릅니다.",
+      ),
+    );
+  }
 
   // 7. Update Linear issue state to "In Progress"
   try {

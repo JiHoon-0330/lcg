@@ -4,7 +4,6 @@ import { issuesCommand } from "./commands/issues.js";
 import { startCommand } from "./commands/start.js";
 import { workCommand } from "./commands/work.js";
 import { statusCommand } from "./commands/status.js";
-import { doneCommand } from "./commands/done.js";
 import { cleanCommand } from "./commands/clean.js";
 import { updateCommand } from "./commands/update.js";
 import { configCommand } from "./commands/config.js";
@@ -47,13 +46,6 @@ program
   .alias("st")
   .description("Show active worktree status")
   .action(statusCommand);
-
-program
-  .command("done <issue-id>")
-  .description(
-    "Push branch, create PR, and update Linear status (e.g. 123 or ENG-123)",
-  )
-  .action(doneCommand);
 
 program
   .command("clean <issue-id>")

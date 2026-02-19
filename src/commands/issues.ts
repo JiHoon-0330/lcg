@@ -7,7 +7,6 @@ import { getWorktreeStatus, getWorktreeDir } from "../lib/git.js";
 import { isClaudeSessionActive } from "../lib/claude.js";
 import { startCommand } from "./start.js";
 import { workCommand } from "./work.js";
-import { doneCommand } from "./done.js";
 import { cleanCommand } from "./clean.js";
 import type { LcgIssue } from "../types/index.js";
 
@@ -125,7 +124,6 @@ export async function issuesCommand(options: {
 
     if (hasWorktree) {
       actionChoices.push({ name: "work", value: "work" });
-      actionChoices.push({ name: "done", value: "done" });
       actionChoices.push({ name: "clean", value: "clean" });
     } else {
       actionChoices.push({ name: "start", value: "start" });
@@ -145,9 +143,6 @@ export async function issuesCommand(options: {
         break;
       case "work":
         await workCommand(selectedIssue);
-        break;
-      case "done":
-        await doneCommand(selectedIssue);
         break;
       case "clean":
         await cleanCommand(selectedIssue);

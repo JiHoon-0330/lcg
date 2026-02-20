@@ -30,8 +30,13 @@ export async function createWorktree(
   const git = getGit(repoPath);
   const worktreePath = getWorktreeDir(worktreeBaseDir, issueId);
 
-  // Fetch latest from remote
+  // Fetch latest and update base branch
   await git.fetch();
+  await git.raw([
+    "update-ref",
+    `refs/heads/${baseBranch}`,
+    `origin/${baseBranch}`,
+  ]);
 
   // Check if branch already exists locally
   const branches = await git.branchLocal();

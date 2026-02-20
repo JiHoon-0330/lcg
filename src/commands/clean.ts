@@ -27,7 +27,7 @@ export async function cleanCommand(issueId: string): Promise<void> {
 
   const proceed = await confirm({
     message: `Remove worktree for ${issueId}?`,
-    default: false,
+    default: true,
   });
   if (!proceed) {
     console.log(chalk.gray("Cancelled."));
@@ -36,7 +36,7 @@ export async function cleanCommand(issueId: string): Promise<void> {
 
   const deleteBranch = await confirm({
     message: "Also delete the local branch?",
-    default: false,
+    default: true,
   });
 
   const spinner = ora("Removing worktree...").start();

@@ -34,6 +34,7 @@ describe("parseWorktreePorcelain", () => {
         head: "abc123def456",
         branch: "main",
         bare: false,
+        prunable: false,
       },
     ]);
   });
@@ -73,6 +74,7 @@ describe("parseWorktreePorcelain", () => {
         head: "abc123",
         branch: null,
         bare: true,
+        prunable: false,
       },
     ]);
   });

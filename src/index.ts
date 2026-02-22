@@ -2,11 +2,11 @@ import { Command } from "commander";
 import { initCommand } from "./commands/init.js";
 import { issuesCommand } from "./commands/issues.js";
 import { startCommand } from "./commands/start.js";
-import { workCommand } from "./commands/work.js";
 import { statusCommand } from "./commands/status.js";
 import { cleanCommand } from "./commands/clean.js";
 import { updateCommand } from "./commands/update.js";
 import { configCommand } from "./commands/config.js";
+import { setupCommand } from "./commands/setup.js";
 
 const program = new Command();
 
@@ -31,15 +31,8 @@ program
 
 program
   .command("start <issue-id>")
-  .description(
-    "Create a worktree and branch for an issue (e.g. 123 or ENG-123)",
-  )
+  .description("Start or resume working on an issue (e.g. 123 or ENG-123)")
   .action(startCommand);
-
-program
-  .command("work <issue-id>")
-  .description("Open a Claude session for an issue (e.g. 123 or ENG-123)")
-  .action(workCommand);
 
 program
   .command("status")
@@ -66,6 +59,8 @@ program
   .command("update")
   .description("Pull latest changes and rebuild LCG")
   .action(updateCommand);
+
+program.command("_setup <issue-id>", { hidden: true }).action(setupCommand);
 
 program.parseAsync().catch((error) => {
   if (error instanceof Error && error.name === "ExitPromptError") {

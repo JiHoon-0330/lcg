@@ -91,6 +91,7 @@ export interface RawWorktree {
   branch: string | null;
   head: string;
   bare: boolean;
+  prunable: boolean;
 }
 
 export function parseWorktreePorcelain(raw: string): RawWorktree[] {
@@ -100,13 +101,20 @@ export function parseWorktreePorcelain(raw: string): RawWorktree[] {
   for (const line of raw.split("\n")) {
     if (line.startsWith("worktree ")) {
       if (current.path) worktrees.push(current as RawWorktree);
-      current = { path: line.slice(9), branch: null, bare: false };
+      current = {
+        path: line.slice(9),
+        branch: null,
+        bare: false,
+        prunable: false,
+      };
     } else if (line.startsWith("HEAD ")) {
       current.head = line.slice(5);
     } else if (line.startsWith("branch ")) {
       current.branch = line.slice(7).replace("refs/heads/", "");
     } else if (line === "bare") {
       current.bare = true;
+    } else if (line.startsWith("prunable ")) {
+      current.prunable = true;
     }
   }
   if (current.path) worktrees.push(current as RawWorktree);
@@ -129,7 +137,7 @@ export async function getWorktreeStatus(
   const results: WorktreeInfo[] = [];
 
   for (const wt of worktrees) {
-    if (!wt.path.startsWith(base)) continue;
+    if (!wt.path.startsWith(base) || wt.bare || wt.prunable) continue;
 
     const issueId = basename(wt.path);
     const wtGit = getGit(wt.path);

@@ -7,6 +7,7 @@ import {
   resolveIssueId,
 } from "../lib/config.js";
 import { getWorktreeDir, worktreeExists, removeWorktree } from "../lib/git.js";
+import { killZellijSession } from "../lib/zellij.js";
 
 export async function cleanCommand(issueId: string): Promise<void> {
   const globalConfig = ensureGlobalConfig();
@@ -26,7 +27,7 @@ export async function cleanCommand(issueId: string): Promise<void> {
   console.log(chalk.bold(`\nWorktree: ${worktreePath}`));
 
   const proceed = await confirm({
-    message: `Remove worktree for ${issueId}?`,
+    message: `Remove worktree, branch, and Zellij session for ${issueId}?`,
     default: true,
   });
   if (!proceed) {
@@ -34,18 +35,17 @@ export async function cleanCommand(issueId: string): Promise<void> {
     return;
   }
 
-  const deleteBranch = await confirm({
-    message: "Also delete the local branch?",
-    default: true,
-  });
+  // 1. Kill Zellij session
+  const zellijKilled = killZellijSession(issueId);
+  if (zellijKilled) {
+    console.log(chalk.green(`Zellij session "${issueId}" killed`));
+  }
 
-  const spinner = ora("Removing worktree...").start();
+  // 2. Remove worktree + branch
+  const spinner = ora("Removing worktree and branch...").start();
   try {
-    await removeWorktree(globalConfig.repoPath, worktreePath, deleteBranch);
-    spinner.succeed("Worktree removed");
-    if (deleteBranch) {
-      console.log(chalk.green("Local branch deleted"));
-    }
+    await removeWorktree(globalConfig.repoPath, worktreePath, true);
+    spinner.succeed("Worktree and branch removed");
   } catch (err) {
     spinner.fail("Failed to remove worktree");
     console.error(chalk.red(String(err)));

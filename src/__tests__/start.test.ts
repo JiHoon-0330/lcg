@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderClaudeMd } from "../commands/start.js";
+import { renderClaudeMd } from "../commands/setup.js";
 
 const DEFAULT_TEMPLATE = [
   "# {{identifier}} - {{title}}",

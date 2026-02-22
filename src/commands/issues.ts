@@ -6,7 +6,6 @@ import { initLinearClient, getMyIssues } from "../lib/linear.js";
 import { getWorktreeStatus, getWorktreeDir } from "../lib/git.js";
 import { isClaudeSessionActive } from "../lib/claude.js";
 import { startCommand } from "./start.js";
-import { workCommand } from "./work.js";
 import { cleanCommand } from "./clean.js";
 import type { LcgIssue } from "../types/index.js";
 
@@ -122,11 +121,9 @@ export async function issuesCommand(options: {
     const hasWorktree = activeWorktrees.has(selectedIssue);
     const actionChoices: Array<{ name: string; value: string }> = [];
 
+    actionChoices.push({ name: "start", value: "start" });
     if (hasWorktree) {
-      actionChoices.push({ name: "work", value: "work" });
       actionChoices.push({ name: "clean", value: "clean" });
-    } else {
-      actionChoices.push({ name: "start", value: "start" });
     }
     actionChoices.push({ name: "Back", value: BACK_VALUE });
 
@@ -140,9 +137,6 @@ export async function issuesCommand(options: {
     switch (selectedAction) {
       case "start":
         await startCommand(selectedIssue);
-        break;
-      case "work":
-        await workCommand(selectedIssue);
         break;
       case "clean":
         await cleanCommand(selectedIssue);

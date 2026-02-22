@@ -1,45 +1,18 @@
 import chalk from "chalk";
 import ora from "ora";
-import { execaCommand } from "execa";
-import { writeFile, mkdir, access } from "node:fs/promises";
-import { join, dirname } from "node:path";
 import {
   ensureGlobalConfig,
   getProjectConfig,
   resolveIssueId,
 } from "../lib/config.js";
 import { initLinearClient, getIssue, updateIssueState } from "../lib/linear.js";
+import { worktreeExists, getWorktreeDir } from "../lib/git.js";
 import {
-  createWorktree,
-  worktreeExists,
-  getWorktreeDir,
-  getGit,
-} from "../lib/git.js";
-import { openClaudeSession } from "../lib/claude.js";
-
-export function renderClaudeMd(
-  template: string,
-  issue: {
-    identifier: string;
-    title: string;
-    description?: string;
-    comments: string[];
-  },
-): string {
-  return template
-    .replace(/\{\{identifier\}\}/g, issue.identifier)
-    .replace(/\{\{title\}\}/g, issue.title)
-    .replace(
-      /\{\{description\}\}/g,
-      issue.description ?? "No description provided",
-    )
-    .replace(
-      /\{\{comments\}\}/g,
-      issue.comments.length > 0
-        ? issue.comments.map((c, i) => `${i + 1}. ${c}`).join("\n")
-        : "No comments",
-    );
-}
+  startZellijWithClaude,
+  attachZellijSession,
+  zellijSessionExists,
+  startZellijInWorktree,
+} from "../lib/zellij.js";
 
 export async function startCommand(issueId: string): Promise<void> {
   const globalConfig = ensureGlobalConfig();
@@ -53,12 +26,33 @@ export async function startCommand(issueId: string): Promise<void> {
 
   issueId = resolveIssueId(projectConfig, issueId);
 
-  // 1. Fetch issue
+  const worktreePath = getWorktreeDir(globalConfig.defaultWorktreeDir, issueId);
+  const sessionExists = zellijSessionExists(issueId);
+  const wtExists = await worktreeExists(worktreePath);
+
+  // State B, C: session exists → attach
+  if (sessionExists) {
+    console.log(chalk.cyan(`\nAttaching to Zellij session: ${issueId}\n`));
+    attachZellijSession(issueId);
+    return;
+  }
+
+  // State D: worktree exists but no session → start zellij with claude
+  if (wtExists) {
+    console.log(
+      chalk.cyan(
+        `\nStarting Zellij session in existing worktree: ${issueId}\n`,
+      ),
+    );
+    startZellijInWorktree(worktreePath, issueId);
+    return;
+  }
+
+  // State A: neither exists → full setup
   const spinner = ora(`Fetching issue ${issueId}...`).start();
   const issue = await getIssue(issueId);
   spinner.succeed(`Found: ${issue.identifier} - ${issue.title}`);
 
-  // 2. Display issue info
   console.log(chalk.bold("\n--- Issue Details ---"));
   console.log(`${chalk.cyan("ID:")} ${issue.identifier}`);
   console.log(`${chalk.cyan("Title:")} ${issue.title}`);
@@ -79,87 +73,6 @@ export async function startCommand(issueId: string): Promise<void> {
   }
   console.log(chalk.bold("--- End Issue Details ---\n"));
 
-  // 3. Check if worktree already exists
-  const worktreePath = getWorktreeDir(globalConfig.defaultWorktreeDir, issueId);
-  if (await worktreeExists(worktreePath)) {
-    console.log(chalk.yellow(`Worktree already exists at: ${worktreePath}`));
-    console.log(chalk.yellow("Use `lcg work` to start working on it."));
-    return;
-  }
-
-  // 4. Create worktree
-  const branchName = issue.branchName;
-  const createSpinner = ora("Creating worktree...").start();
-  try {
-    await mkdir(dirname(worktreePath), { recursive: true });
-    const path = await createWorktree(
-      globalConfig.repoPath,
-      globalConfig.defaultWorktreeDir,
-      issueId,
-      branchName,
-      projectConfig.baseBranch,
-    );
-    createSpinner.succeed(`Worktree created at: ${path}`);
-
-    // Push branch to set upstream tracking
-    const wtGit = getGit(path);
-    await wtGit.push(["-u", "origin", branchName]);
-    console.log(chalk.green(`Upstream set to origin/${branchName}`));
-  } catch (err) {
-    createSpinner.fail("Failed to create worktree");
-    console.error(chalk.red(String(err)));
-    process.exit(1);
-  }
-
-  // 6. Run post-setup script
-  if (projectConfig.postSetup) {
-    const setupSpinner = ora(
-      `Running post-setup: ${projectConfig.postSetup}`,
-    ).start();
-    try {
-      await execaCommand(projectConfig.postSetup, {
-        cwd: worktreePath,
-        stdio: "inherit",
-        shell: true,
-      });
-      setupSpinner.succeed("Post-setup script completed");
-    } catch (err) {
-      setupSpinner.warn(
-        `Post-setup script failed: ${String(err)}. Continuing...`,
-      );
-    }
-  }
-
-  // 6. Generate CLAUDE.local.md with issue context
-  const claudeMd = renderClaudeMd(projectConfig.claudeMdTemplate, issue);
-  await writeFile(join(worktreePath, "CLAUDE.local.md"), claudeMd, "utf-8");
-
-  // Check if CLAUDE.md exists in the worktree (from base branch)
-  const claudeMdPath = join(worktreePath, "CLAUDE.md");
-  let hasClaudeMd = false;
-  try {
-    await access(claudeMdPath);
-    hasClaudeMd = true;
-  } catch {
-    // CLAUDE.md does not exist
-  }
-
-  if (hasClaudeMd) {
-    console.log(
-      chalk.green(
-        "CLAUDE.md found — CLAUDE.local.md에 이슈 컨텍스트를 추가했습니다",
-      ),
-    );
-  } else {
-    console.log(chalk.green("CLAUDE.local.md generated with issue context"));
-    console.log(
-      chalk.yellow(
-        "CLAUDE.md가 없습니다. 프로젝트 규칙을 담은 CLAUDE.md를 추가하면 Claude가 프로젝트 컨벤션을 더 잘 따릅니다.",
-      ),
-    );
-  }
-
-  // 7. Update Linear issue state to "In Progress"
   try {
     await updateIssueState(issue.id, "In Progress", projectConfig.teamId);
     console.log(chalk.green('Linear issue status updated to "In Progress"'));
@@ -167,7 +80,6 @@ export async function startCommand(issueId: string): Promise<void> {
     console.log(chalk.yellow(`Could not update issue state: ${String(err)}`));
   }
 
-  // 8. Open Claude session
-  console.log(chalk.cyan(`\nOpening Claude session in: ${worktreePath}\n`));
-  await openClaudeSession(worktreePath);
+  console.log(chalk.cyan(`\nStarting Zellij session: ${issueId}\n`));
+  startZellijWithClaude(issueId, issueId);
 }

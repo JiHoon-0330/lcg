@@ -1,7 +1,10 @@
 import { input, select } from "@inquirer/prompts";
 import chalk from "chalk";
 import ora from "ora";
-import { resolve, basename } from "node:path";
+import { resolve, basename, join } from "node:path";
+import { homedir } from "node:os";
+import { mkdir, writeFile } from "node:fs/promises";
+import { execaCommand } from "execa";
 import {
   getGlobalConfig,
   setGlobalConfig,
@@ -18,7 +21,42 @@ import {
 import { getRepoRoot } from "../lib/git.js";
 import type { ProjectConfig } from "../types/index.js";
 
+async function ensureZellij(): Promise<void> {
+  try {
+    await execaCommand("zellij --version");
+  } catch {
+    console.log(
+      chalk.yellow("zellij가 설치되어 있지 않습니다. 설치를 시작합니다...\n"),
+    );
+    const spinner = ora("Installing zellij via Homebrew...").start();
+    try {
+      await execaCommand("brew install zellij", { stdio: "inherit" });
+      spinner.succeed("zellij 설치 완료");
+    } catch {
+      spinner.fail("zellij 설치 실패");
+      console.log(
+        chalk.red(
+          "Homebrew로 설치할 수 없습니다. 수동으로 설치해주세요: https://zellij.dev/documentation/installation",
+        ),
+      );
+      process.exit(1);
+    }
+  }
+
+  // Write lcg-specific zellij config
+  const configDir = join(homedir(), ".config", "zellij");
+  await mkdir(configDir, { recursive: true });
+  const lcgConfigPath = join(configDir, "lcg.kdl");
+  await writeFile(
+    lcgConfigPath,
+    ['tips "off"', "keybinds clear-defaults=true {", "}", ""].join("\n"),
+    "utf-8",
+  );
+}
+
 export async function initCommand(): Promise<void> {
+  await ensureZellij();
+
   const existing = getGlobalConfig();
   const isReinit = !!existing.linearApiKey;
 
@@ -30,7 +68,8 @@ export async function initCommand(): Promise<void> {
   }
 
   // 1. Linear API Key
-  const LINEAR_API_URL = "https://linear.app/settings/account/security";
+  const LINEAR_API_URL =
+    "https://linear.app/developers/graphql#personal-api-keys";
   console.log(chalk.gray(`API 키 발급: ${LINEAR_API_URL}\n`));
   const apiKey = await input({
     message: "Enter your Linear API key:",
@@ -153,9 +192,7 @@ export async function initCommand(): Promise<void> {
       "Post-setup script (워크트리 생성 후 실행할 명령어, e.g. pnpm install, npm ci):",
     default: existingProject?.postSetup ?? "",
   });
-  if (postSetup.trim()) {
-    projectConfig.postSetup = postSetup.trim();
-  }
+  projectConfig.postSetup = postSetup.trim();
 
   await saveProjectConfig(resolvedWorktreeDir, projectConfig);
 

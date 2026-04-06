@@ -114,16 +114,18 @@ export async function resolveProjectContext(
 ): Promise<ProjectContext> {
   const projectRoot = await findProjectRoot(startDir);
   if (!projectRoot) {
-    throw new Error(
+    console.error(
       "프로젝트 설정을 찾을 수 없습니다. .lcg.json이 있는 디렉터리에서 실행하거나 `lcg init`을 먼저 실행하세요.",
     );
+    process.exit(1);
   }
 
   const projectConfig = await getProjectConfig(projectRoot);
   if (!projectConfig) {
-    throw new Error(
+    console.error(
       "프로젝트 설정을 읽을 수 없습니다. `lcg init`을 다시 실행하세요.",
     );
+    process.exit(1);
   }
 
   const worktreeDir = projectRoot;

@@ -2,8 +2,8 @@ import chalk from "chalk";
 import ora from "ora";
 import {
   ensureGlobalConfig,
-  getProjectConfig,
   resolveIssueId,
+  resolveProjectContext,
 } from "../lib/config.js";
 import { initLinearClient, getIssue, updateIssueState } from "../lib/linear.js";
 import { worktreeExists, getWorktreeDir } from "../lib/git.js";
@@ -14,19 +14,18 @@ import {
   startZellijInWorktree,
 } from "../lib/zellij.js";
 
-export async function startCommand(issueId: string): Promise<void> {
+export async function startCommand(
+  issueId: string,
+  options: { base?: string | true },
+): Promise<void> {
   const globalConfig = ensureGlobalConfig();
   initLinearClient(globalConfig.linearApiKey);
 
-  const projectConfig = await getProjectConfig(globalConfig.defaultWorktreeDir);
-  if (!projectConfig) {
-    console.log(chalk.red("Project not configured. Run `lcg init` first."));
-    process.exit(1);
-  }
+  const { projectConfig, worktreeDir } = await resolveProjectContext();
 
   issueId = resolveIssueId(projectConfig, issueId);
 
-  const worktreePath = getWorktreeDir(globalConfig.defaultWorktreeDir, issueId);
+  const worktreePath = getWorktreeDir(worktreeDir, issueId);
   const sessionExists = zellijSessionExists(issueId);
   const wtExists = await worktreeExists(worktreePath);
 
@@ -80,6 +79,16 @@ export async function startCommand(issueId: string): Promise<void> {
     console.log(chalk.yellow(`Could not update issue state: ${String(err)}`));
   }
 
+  // Resolve base branch
+  let baseBranch: string | undefined;
+  if (typeof options.base === "string") {
+    baseBranch = options.base;
+  } else if (options.base === true) {
+    // --base flag without value → interactive branch picker
+    const { selectBranch } = await import("../lib/git.js");
+    baseBranch = await selectBranch(worktreeDir, projectConfig.baseBranch);
+  }
+
   console.log(chalk.cyan(`\nStarting Zellij session: ${issueId}\n`));
-  startZellijWithClaude(issueId, issueId);
+  startZellijWithClaude(issueId, issueId, worktreeDir, baseBranch);
 }

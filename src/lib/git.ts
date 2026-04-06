@@ -1,6 +1,7 @@
 import simpleGit, { type SimpleGit } from "simple-git";
 import { resolve, basename } from "node:path";
 import { access } from "node:fs/promises";
+import { search } from "@inquirer/prompts";
 import type { WorktreeInfo } from "../types/index.js";
 
 export function getGit(cwd?: string): SimpleGit {
@@ -196,4 +197,36 @@ export async function worktreeExists(path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export async function getRemoteBranches(repoPath: string): Promise<string[]> {
+  const git = getGit(repoPath);
+  await git.fetch();
+  const branches = await git.branch(["-r"]);
+  return branches.all
+    .map((b) => b.replace(/^origin\//, ""))
+    .filter((b) => b !== "HEAD");
+}
+
+export async function selectBranch(
+  worktreeDir: string,
+  defaultBranch: string,
+): Promise<string> {
+  // Find the repo path (baseBranch dir) to get branches
+  const repoPath = resolve(worktreeDir, defaultBranch);
+  const remoteBranches = await getRemoteBranches(repoPath);
+
+  return search({
+    message: "Select base branch:",
+    source: (input) => {
+      const term = (input ?? "").toLowerCase();
+      const filtered = remoteBranches.filter((b) =>
+        b.toLowerCase().includes(term),
+      );
+      return filtered.map((b) => ({
+        name: b === defaultBranch ? `${b} (default)` : b,
+        value: b,
+      }));
+    },
+  });
 }

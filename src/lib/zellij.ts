@@ -25,10 +25,19 @@ function ensureLcgConfig(): string {
 export function startZellijWithClaude(
   sessionName: string,
   issueId: string,
+  worktreeDir?: string,
+  baseBranch?: string,
 ): void {
+  const setupArgs = [`"_setup"`, `"${issueId}"`];
+  if (worktreeDir) {
+    setupArgs.push(`"--worktree-dir"`, `"${worktreeDir}"`);
+  }
+  if (baseBranch) {
+    setupArgs.push(`"--base-branch"`, `"${baseBranch}"`);
+  }
   const layoutContent = `layout {
     pane command="lcg" {
-        args "_setup" "${issueId}"
+        args ${setupArgs.join(" ")}
     }
 }
 `;

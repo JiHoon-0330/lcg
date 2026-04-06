@@ -1,23 +1,17 @@
 import { confirm } from "@inquirer/prompts";
 import chalk from "chalk";
 import ora from "ora";
-import {
-  ensureGlobalConfig,
-  getProjectConfig,
-  resolveIssueId,
-} from "../lib/config.js";
+import { resolveIssueId, resolveProjectContext } from "../lib/config.js";
 import { getWorktreeDir, worktreeExists, removeWorktree } from "../lib/git.js";
 import { killZellijSession } from "../lib/zellij.js";
 
 export async function cleanCommand(issueId: string): Promise<void> {
-  const globalConfig = ensureGlobalConfig();
+  const { projectConfig, worktreeDir, repoPath } =
+    await resolveProjectContext();
 
-  const projectConfig = await getProjectConfig(globalConfig.defaultWorktreeDir);
-  if (projectConfig) {
-    issueId = resolveIssueId(projectConfig, issueId);
-  }
+  issueId = resolveIssueId(projectConfig, issueId);
 
-  const worktreePath = getWorktreeDir(globalConfig.defaultWorktreeDir, issueId);
+  const worktreePath = getWorktreeDir(worktreeDir, issueId);
 
   if (!(await worktreeExists(worktreePath))) {
     console.log(chalk.yellow(`No worktree found for ${issueId}.`));
@@ -44,7 +38,7 @@ export async function cleanCommand(issueId: string): Promise<void> {
   // 2. Remove worktree + branch
   const spinner = ora("Removing worktree and branch...").start();
   try {
-    await removeWorktree(globalConfig.repoPath, worktreePath, true);
+    await removeWorktree(repoPath, worktreePath, true);
     spinner.succeed("Worktree and branch removed");
   } catch (err) {
     spinner.fail("Failed to remove worktree");

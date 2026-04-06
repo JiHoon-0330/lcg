@@ -7,6 +7,7 @@ import { cleanCommand } from "./commands/clean.js";
 import { updateCommand } from "./commands/update.js";
 import { configCommand } from "./commands/config.js";
 import { setupCommand } from "./commands/setup.js";
+import { syncCommand } from "./commands/sync.js";
 
 const program = new Command();
 
@@ -32,6 +33,10 @@ program
 program
   .command("start <issue-id>")
   .description("Start or resume working on an issue (e.g. 123 or ENG-123)")
+  .option(
+    "-b, --base [branch]",
+    "Base branch for the worktree (interactive picker if no value given)",
+  )
   .action(startCommand);
 
 program
@@ -56,11 +61,22 @@ program
   .action(configCommand);
 
 program
+  .command("sync [branch]")
+  .description(
+    "Update chained PR branches from root base to target branch (default: current branch)",
+  )
+  .action(syncCommand);
+
+program
   .command("update")
   .description("Pull latest changes and rebuild LCG")
   .action(updateCommand);
 
-program.command("_setup <issue-id>", { hidden: true }).action(setupCommand);
+program
+  .command("_setup <issue-id>", { hidden: true })
+  .option("--worktree-dir <dir>", "Worktree root directory")
+  .option("--base-branch <branch>", "Base branch override")
+  .action(setupCommand);
 
 program.parseAsync().catch((error) => {
   if (error instanceof Error && error.name === "ExitPromptError") {

@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import { execaCommand } from "execa";
 import { join } from "node:path";
-import { getGlobalConfigPath, ensureGlobalConfig } from "../lib/config.js";
+import { getGlobalConfigPath, findProjectRoot } from "../lib/config.js";
 
 export async function configCommand(options: {
   global?: boolean;
@@ -14,15 +14,25 @@ export async function configCommand(options: {
   }
 
   if (options.project) {
-    const globalConfig = ensureGlobalConfig();
-    paths.push(join(globalConfig.defaultWorktreeDir, ".lcg.json"));
+    const projectRoot = await findProjectRoot();
+    if (!projectRoot) {
+      console.log(
+        chalk.red(
+          "프로젝트 설정을 찾을 수 없습니다. .lcg.json이 있는 디렉터리에서 실행하세요.",
+        ),
+      );
+      process.exit(1);
+    }
+    paths.push(join(projectRoot, ".lcg.json"));
   }
 
   // 둘 다 지정하지 않으면 둘 다 열기
   if (!options.global && !options.project) {
-    const globalConfig = ensureGlobalConfig();
     paths.push(getGlobalConfigPath());
-    paths.push(join(globalConfig.defaultWorktreeDir, ".lcg.json"));
+    const projectRoot = await findProjectRoot();
+    if (projectRoot) {
+      paths.push(join(projectRoot, ".lcg.json"));
+    }
   }
 
   for (const p of paths) {

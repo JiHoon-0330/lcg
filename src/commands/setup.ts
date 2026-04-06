@@ -5,8 +5,8 @@ import { writeFile, mkdir, access } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import {
   ensureGlobalConfig,
-  getProjectConfig,
   resolveIssueId,
+  resolveProjectContext,
 } from "../lib/config.js";
 import { initLinearClient, getIssue } from "../lib/linear.js";
 import { createWorktree, getWorktreeDir, getGit } from "../lib/git.js";
@@ -35,17 +35,20 @@ export function renderClaudeMd(
     );
 }
 
-export async function setupCommand(issueId: string): Promise<void> {
+export async function setupCommand(
+  issueId: string,
+  options: { worktreeDir?: string; baseBranch?: string },
+): Promise<void> {
   const globalConfig = ensureGlobalConfig();
   initLinearClient(globalConfig.linearApiKey);
 
-  const projectConfig = await getProjectConfig(globalConfig.defaultWorktreeDir);
-  if (!projectConfig) {
-    console.log(chalk.red("Project not configured. Run `lcg init` first."));
-    process.exit(1);
-  }
+  const { projectConfig, worktreeDir, repoPath } = await resolveProjectContext(
+    options.worktreeDir,
+  );
 
   issueId = resolveIssueId(projectConfig, issueId);
+
+  const baseBranch = options.baseBranch ?? projectConfig.baseBranch;
 
   // 1. Fetch issue
   const spinner = ora(`Fetching issue ${issueId}...`).start();
@@ -53,17 +56,17 @@ export async function setupCommand(issueId: string): Promise<void> {
   spinner.succeed(`Found: ${issue.identifier} - ${issue.title}`);
 
   // 2. Create worktree
-  const worktreePath = getWorktreeDir(globalConfig.defaultWorktreeDir, issueId);
+  const worktreePath = getWorktreeDir(worktreeDir, issueId);
   const branchName = issue.branchName;
   const createSpinner = ora("Creating worktree...").start();
   try {
     await mkdir(dirname(worktreePath), { recursive: true });
     const path = await createWorktree(
-      globalConfig.repoPath,
-      globalConfig.defaultWorktreeDir,
+      repoPath,
+      worktreeDir,
       issueId,
       branchName,
-      projectConfig.baseBranch,
+      baseBranch,
     );
     createSpinner.succeed(`Worktree created at: ${path}`);
 

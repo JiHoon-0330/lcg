@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import ora from "ora";
 import { select, Separator } from "@inquirer/prompts";
-import { ensureGlobalConfig, getProjectConfig } from "../lib/config.js";
+import { ensureGlobalConfig, resolveProjectContext } from "../lib/config.js";
 import { initLinearClient, getMyIssues } from "../lib/linear.js";
 import { getWorktreeStatus, getWorktreeDir } from "../lib/git.js";
 import { isClaudeSessionActive } from "../lib/claude.js";
@@ -25,12 +25,12 @@ export async function issuesCommand(options: {
   const globalConfig = ensureGlobalConfig();
   initLinearClient(globalConfig.linearApiKey);
 
+  const { projectConfig, worktreeDir, repoPath } =
+    await resolveProjectContext();
+
   let teamId = options.team;
   if (!teamId && !options.all) {
-    const projectConfig = await getProjectConfig(
-      globalConfig.defaultWorktreeDir,
-    );
-    if (projectConfig) teamId = projectConfig.teamId;
+    teamId = projectConfig.teamId;
   }
 
   const spinner = ora("Fetching issues...").start();
@@ -50,14 +50,11 @@ export async function issuesCommand(options: {
   let activeWorktrees = new Set<string>();
   const claudeActive = new Set<string>();
   try {
-    const statuses = await getWorktreeStatus(
-      globalConfig.repoPath,
-      globalConfig.defaultWorktreeDir,
-    );
+    const statuses = await getWorktreeStatus(repoPath, worktreeDir);
     activeWorktrees = new Set(statuses.map((s) => s.issueId));
     const checks = await Promise.all(
       statuses.map(async (s) => {
-        const dir = getWorktreeDir(globalConfig.defaultWorktreeDir, s.issueId);
+        const dir = getWorktreeDir(worktreeDir, s.issueId);
         const active = await isClaudeSessionActive(dir);
         return { issueId: s.issueId, active };
       }),
@@ -136,7 +133,7 @@ export async function issuesCommand(options: {
 
     switch (selectedAction) {
       case "start":
-        await startCommand(selectedIssue);
+        await startCommand(selectedIssue, {});
         break;
       case "clean":
         await cleanCommand(selectedIssue);

@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import ora from "ora";
-import { ensureGlobalConfig, getProjectConfig } from "../lib/config.js";
+import { ensureGlobalConfig, resolveProjectContext } from "../lib/config.js";
 import { initLinearClient, getIssue } from "../lib/linear.js";
 import { getWorktreeStatus } from "../lib/git.js";
 
@@ -8,17 +8,10 @@ export async function statusCommand(): Promise<void> {
   const globalConfig = ensureGlobalConfig();
   initLinearClient(globalConfig.linearApiKey);
 
-  const projectConfig = await getProjectConfig(globalConfig.defaultWorktreeDir);
-  if (!projectConfig) {
-    console.log(chalk.red("Project not configured. Run `lcg init` first."));
-    process.exit(1);
-  }
+  const { repoPath, worktreeDir } = await resolveProjectContext();
 
   const spinner = ora("Checking worktree status...").start();
-  const worktrees = await getWorktreeStatus(
-    globalConfig.repoPath,
-    globalConfig.defaultWorktreeDir,
-  );
+  const worktrees = await getWorktreeStatus(repoPath, worktreeDir);
   spinner.stop();
 
   if (worktrees.length === 0) {

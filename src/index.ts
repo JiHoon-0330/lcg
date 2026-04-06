@@ -22,8 +22,7 @@ program
   .action(initCommand);
 
 program
-  .command("issues")
-  .alias("ls")
+  .command("ls")
   .description("List issues assigned to you")
   .option("-a, --all", "Show issues from all teams")
   .option("-s, --status <status>", "Filter by status")
@@ -73,6 +72,22 @@ program
   .command("update")
   .description("Pull latest changes and rebuild LCG")
   .action(updateCommand);
+
+program.addHelpText(
+  "after",
+  `
+Examples:
+  lcg ls                        내 이슈 목록 (현재 팀)
+  lcg ls -a                     모든 팀의 내 이슈
+  lcg ls -s "In Progress"       특정 상태만 필터
+  lcg start 123                 이슈 작업 시작 (worktree + Zellij + Claude)
+  lcg start 123 --base canary   canary 브랜치 기반으로 시작
+  lcg start 123 --base          인터랙티브 브랜치 선택 후 시작
+  lcg sync feat/my-branch       체이닝된 PR을 루트까지 순차 업데이트
+  lcg clean 123                 worktree, 브랜치, Zellij 세션 정리
+  lcg cfg -g                    글로벌 설정 파일 열기
+  lcg cfg -p                    프로젝트 설정 파일 열기`,
+);
 
 program
   .command("_setup <issue-id>", { hidden: true })

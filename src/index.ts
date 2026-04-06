@@ -56,9 +56,10 @@ program
 program
   .command("config")
   .alias("cfg")
-  .description("Open config files in default editor")
-  .option("-g, --global", "Open global config only")
-  .option("-p, --project", "Open project config only")
+  .description("Show current config (use -e to edit)")
+  .option("-e, --edit", "Open config files in default editor")
+  .option("-g, --global", "Global config only (with -e)")
+  .option("-p, --project", "Project config only (with -e)")
   .action(configCommand);
 
 program
@@ -85,8 +86,8 @@ Examples:
   lcg start 123 --base          인터랙티브 브랜치 선택 후 시작
   lcg sync feat/my-branch       체이닝된 PR을 루트까지 순차 업데이트
   lcg clean 123                 worktree, 브랜치, Zellij 세션 정리
-  lcg cfg -g                    글로벌 설정 파일 열기
-  lcg cfg -p                    프로젝트 설정 파일 열기`,
+  lcg cfg                       현재 설정 상태 확인
+  lcg cfg -e                    설정 파일 에디터로 열기`,
 );
 
 program

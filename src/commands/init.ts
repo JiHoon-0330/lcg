@@ -1,9 +1,9 @@
-import { input, select } from "@inquirer/prompts";
+import { input, select, search } from "@inquirer/prompts";
 import chalk from "chalk";
 import ora from "ora";
-import { resolve, basename, join } from "node:path";
+import { resolve, basename, join, dirname } from "node:path";
 import { homedir } from "node:os";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, readdir } from "node:fs/promises";
 import { execaCommand } from "execa";
 import {
   getGlobalConfig,
@@ -20,6 +20,60 @@ import {
 } from "../lib/linear.js";
 import { getRepoRoot } from "../lib/git.js";
 import type { ProjectConfig } from "../types/index.js";
+
+function expandTilde(p: string): string {
+  return p.startsWith("~/") ? join(homedir(), p.slice(2)) : p;
+}
+
+async function listDirs(parentDir: string): Promise<string[]> {
+  try {
+    const entries = await readdir(parentDir, { withFileTypes: true });
+    return entries.filter((e) => e.isDirectory()).map((e) => e.name);
+  } catch {
+    return [];
+  }
+}
+
+async function inputPath(
+  message: string,
+  defaultValue: string,
+): Promise<string> {
+  return search({
+    message,
+    source: async (term) => {
+      const raw = term ?? defaultValue;
+      const expanded = expandTilde(raw);
+      const resolved = resolve(expanded);
+
+      // List subdirectories of the current input path
+      const parent = expanded.endsWith("/") ? resolved : dirname(resolved);
+      const prefix = expanded.endsWith("/") ? "" : basename(resolved);
+      const dirs = await listDirs(parent);
+
+      const filtered = dirs.filter((d) =>
+        d.toLowerCase().startsWith(prefix.toLowerCase()),
+      );
+
+      const choices = filtered.map((d) => {
+        const full = join(parent, d);
+        // Show with ~ prefix for readability
+        const display = full.startsWith(homedir())
+          ? "~" + full.slice(homedir().length)
+          : full;
+        return { name: display, value: full };
+      });
+
+      // Always include the current input as-is at the top
+      const currentResolved = resolve(expanded);
+      const currentDisplay = currentResolved.startsWith(homedir())
+        ? "~" + currentResolved.slice(homedir().length)
+        : currentResolved;
+      choices.unshift({ name: currentDisplay, value: currentResolved });
+
+      return choices;
+    },
+  });
+}
 
 async function ensureZellij(): Promise<void> {
   try {
@@ -129,11 +183,10 @@ export async function initCommand(): Promise<void> {
 
   // 4. Worktree root directory
   const defaultDir = existing.defaultWorktreeDir || process.cwd();
-  const worktreeDir = await input({
-    message: "Worktree root directory:",
-    default: defaultDir,
-  });
-  const resolvedWorktreeDir = resolve(worktreeDir);
+  const resolvedWorktreeDir = await inputPath(
+    "Worktree root directory:",
+    defaultDir,
+  );
   setGlobalConfig({ defaultWorktreeDir: resolvedWorktreeDir });
 
   // 5. Base branch (= git repo folder name)

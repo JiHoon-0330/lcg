@@ -32,7 +32,9 @@ program
 
 program
   .command("start <issue-id>")
-  .description("Start or resume working on an issue (e.g. 123 or ENG-123)")
+  .description(
+    "Start or resume working on an issue — creates worktree, starts Zellij + Claude",
+  )
   .option(
     "-b, --base [branch]",
     "Base branch for the worktree (interactive picker if no value given)",

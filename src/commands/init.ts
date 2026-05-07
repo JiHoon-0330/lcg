@@ -3,8 +3,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { resolve, basename, join, dirname } from "node:path";
 import { homedir } from "node:os";
-import { mkdir, writeFile, readdir } from "node:fs/promises";
-import { execaCommand } from "execa";
+import { readdir } from "node:fs/promises";
 import {
   getGlobalConfig,
   setGlobalConfig,
@@ -75,42 +74,7 @@ async function inputPath(
   });
 }
 
-async function ensureZellij(): Promise<void> {
-  try {
-    await execaCommand("zellij --version");
-  } catch {
-    console.log(
-      chalk.yellow("zellij가 설치되어 있지 않습니다. 설치를 시작합니다...\n"),
-    );
-    const spinner = ora("Installing zellij via Homebrew...").start();
-    try {
-      await execaCommand("brew install zellij", { stdio: "inherit" });
-      spinner.succeed("zellij 설치 완료");
-    } catch {
-      spinner.fail("zellij 설치 실패");
-      console.log(
-        chalk.red(
-          "Homebrew로 설치할 수 없습니다. 수동으로 설치해주세요: https://zellij.dev/documentation/installation",
-        ),
-      );
-      process.exit(1);
-    }
-  }
-
-  // Write lcg-specific zellij config
-  const configDir = join(homedir(), ".config", "zellij");
-  await mkdir(configDir, { recursive: true });
-  const lcgConfigPath = join(configDir, "lcg.kdl");
-  await writeFile(
-    lcgConfigPath,
-    ['tips "off"', "keybinds clear-defaults=true {", "}", ""].join("\n"),
-    "utf-8",
-  );
-}
-
 export async function initCommand(): Promise<void> {
-  await ensureZellij();
-
   const existing = getGlobalConfig();
   const isReinit = !!existing.linearApiKey;
 
@@ -237,6 +201,7 @@ export async function initCommand(): Promise<void> {
         "- Follow existing code patterns and conventions",
         "- Write tests for new functionality",
       ].join("\n"),
+    startCommand: existingProject?.startCommand ?? "",
   };
 
   // 7. Post-setup script
@@ -246,6 +211,14 @@ export async function initCommand(): Promise<void> {
     default: existingProject?.postSetup ?? "",
   });
   projectConfig.postSetup = postSetup.trim();
+
+  const startCommand = await input({
+    message:
+      'Start command (워크트리 준비 후 실행할 명령어, e.g. claude, open "$worktree_folder_name"):',
+    default: existingProject?.startCommand || undefined,
+    validate: (value) => value.trim().length > 0 || "startCommand is required",
+  });
+  projectConfig.startCommand = startCommand.trim();
 
   await saveProjectConfig(resolvedWorktreeDir, projectConfig);
 

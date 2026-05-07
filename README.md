@@ -1,12 +1,12 @@
-# LCG (Linear + Claude + Git)
+# LCG (Linear + Git Worktree)
 
-Linear 이슈 확인 → Git worktree 생성 → Claude Code로 개발
-→ PR 생성까지의 반복 워크플로우를 하나의 CLI로 자동화합니다.
+Linear 이슈 확인 → Git worktree 생성 → 원하는 시작 명령 실행
+→ PR 업데이트까지의 반복 워크플로우를 하나의 CLI로 자동화합니다.
 
 ```bash
 lcg init            # 초기 설정
 lcg issues          # 내 이슈 확인
-lcg start LIN-123   # worktree + 브랜치 생성, Zellij 세션 시작
+lcg start LIN-123   # worktree + 브랜치 생성, startCommand 실행
 lcg clean LIN-123   # worktree 정리
 lcg status          # 활성 worktree 현황
 lcg sync feat/123   # 체이닝된 PR 브랜치 순차 업데이트
@@ -20,15 +20,12 @@ lcg update          # LCG 자체 업데이트
 - **Git** (worktree 기능 사용)
 - **[GitHub CLI][gh]** — PR 생성 및 `lcg sync`에 사용.
   `gh auth login`으로 인증 필요
-- **[Claude Code CLI][claude]** — AI 코딩 세션에 사용
-- **[Zellij][zellij]** — 터미널 멀티플렉서.
-  `lcg init` 시 자동 설치 시도 (Homebrew)
+- **시작 명령용 CLI/앱** — `.lcg.json`의 `startCommand`에
+  직접 등록한 명령이 실행됩니다
 - **[Linear API 키][linear-api]** —
   Settings > Security & Access > API에서 발급
 
 [gh]: https://cli.github.com/
-[claude]: https://docs.anthropic.com/en/docs/claude-code
-[zellij]: https://zellij.dev/
 [linear-api]: https://linear.app/settings/account/security
 
 ## 설치
@@ -75,6 +72,8 @@ lcg init
    존재해야 합니다
 6. **Post-setup 스크립트** — worktree 생성 후 실행할
    명령어 (예: `pnpm install`, `npm ci`)
+7. **Start command** — worktree 준비 후 실행할 필수 명령어
+   (예: `claude`, `open "$worktree_folder_name"`)
 
 `lcg init`은 `<worktree-root>/<default-branch>` 경로가
 유효한 git repo인지 자동 검증합니다.
@@ -106,7 +105,7 @@ lcg init
 | 파일          | 위치                          | 내용                     |
 | ------------- | ----------------------------- | ------------------------ |
 | 글로벌 설정   | `~/.config/lcg/config.json`   | API 키, 사용자 ID        |
-| 프로젝트 설정 | `<worktree-root>/.lcg.json`   | 팀 ID, 브랜치, 템플릿    |
+| 프로젝트 설정 | `<worktree-root>/.lcg.json`   | 팀 ID, 브랜치, 템플릿, startCommand |
 
 > `.lcg.json`은 worktree 루트에 저장됩니다.
 > API 키는 포함되지 않습니다.
@@ -137,15 +136,15 @@ In Progress
   LIN-124  대시보드 API 연동     High   ← worktree active
 ```
 
-활성 worktree나 Claude 세션이 있는 이슈는 별도 표시됩니다.
+활성 worktree가 있는 이슈는 별도 표시됩니다.
 
 ---
 
 ### `lcg start <issue-id>`
 
 이슈 작업을 시작합니다. Git worktree와 브랜치를 생성하고,
-Claude Code가 읽을 `CLAUDE.local.md`를 자동 생성한 뒤,
-Zellij 세션 안에서 Claude Code를 시작합니다.
+이슈 컨텍스트가 담긴 `CLAUDE.local.md`를 자동 생성한 뒤,
+`.lcg.json`의 `startCommand`를 worktree 디렉터리에서 실행합니다.
 
 ```bash
 lcg start LIN-123              # 기본 브랜치 기반으로 시작
@@ -157,9 +156,8 @@ lcg start LIN-123 --base        # 인터랙티브 브랜치 선택
 
 | 상태 | 조건 | 동작 |
 |------|------|------|
-| A | 세션/워크트리 없음 | 전체 셋업: 이슈 조회 → 워크트리 생성 → Zellij + Claude 시작 |
-| B | Zellij 세션 존재 | 기존 세션에 attach |
-| D | 워크트리만 존재 | Zellij 세션 새로 생성 후 Claude 시작 |
+| A | 워크트리 없음 | 전체 셋업: 이슈 조회 → 워크트리 생성 → startCommand 실행 |
+| B | 워크트리 존재 | 해당 워크트리에서 startCommand 실행 |
 
 **`--base` 옵션:**
 
@@ -174,7 +172,11 @@ lcg start LIN-123 --base        # 인터랙티브 브랜치 선택
 3. `git worktree add`로 격리된 작업 디렉토리 생성
 4. post-setup 스크립트 실행 (설정된 경우)
 5. 이슈 컨텍스트가 담긴 `CLAUDE.local.md` 생성
-6. Zellij 세션 안에서 Claude Code 시작
+6. 설정된 startCommand 실행
+
+`startCommand`는 셸로 실행되므로 환경변수를 사용할 수 있습니다.
+예를 들어 `"open \"$worktree_folder_name\""`는 `LIN-123` 같은
+worktree 폴더명을 앱에 넘깁니다.
 
 ```text
 ~/worktrees/
@@ -262,9 +264,8 @@ lcg clean LIN-123
 
 확인 프롬프트 후:
 
-1. Zellij 세션 종료
-2. Git worktree 삭제
-3. 로컬 브랜치 삭제
+1. Git worktree 삭제
+2. 로컬 브랜치 삭제
 
 ---
 
@@ -302,17 +303,16 @@ lcg init
 # 2. 할당된 이슈 확인
 lcg issues
 
-# 3. 이슈 작업 시작 — worktree + Zellij + Claude 시작
+# 3. 이슈 작업 시작 — worktree + startCommand 실행
 lcg start LIN-123
 
-# 4. Zellij 세션에서 Claude와 대화하며 코딩
-#    완료 후 Ctrl+Q로 세션 detach
+# 4. 설정된 startCommand로 작업 시작
 
 # 5. (선택) 다른 이슈를 병렬로 작업
 lcg start LIN-456
 
-# 6. 기존 세션에 다시 접속
-lcg start LIN-123   # 기존 세션이 있으면 자동 attach
+# 6. 기존 worktree에서 startCommand 다시 실행
+lcg start LIN-123
 
 # 7. 진행 상황 확인
 lcg status
@@ -334,7 +334,7 @@ lcg/
 │   │   ├── init.ts        # lcg init
 │   │   ├── issues.ts      # lcg issues
 │   │   ├── start.ts       # lcg start
-│   │   ├── setup.ts       # lcg _setup (내부용)
+│   │   ├── setup.ts       # lcg _setup
 │   │   ├── status.ts      # lcg status
 │   │   ├── sync.ts        # lcg sync
 │   │   ├── clean.ts       # lcg clean
@@ -343,8 +343,7 @@ lcg/
 │   ├── lib/
 │   │   ├── linear.ts      # Linear API SDK 래퍼
 │   │   ├── git.ts         # Git/worktree 조작
-│   │   ├── claude.ts      # Claude Code CLI 실행
-│   │   ├── zellij.ts      # Zellij 세션 관리
+│   │   ├── start-command.ts # startCommand 실행 헬퍼
 │   │   └── config.ts      # 설정 파일 읽기/쓰기
 │   ├── types/
 │   │   └── index.ts       # 공통 타입 정의
@@ -399,13 +398,32 @@ pnpm build
   "branchPrefix": "",
   "baseBranch": "main",
   "claudeMdTemplate": "# {{identifier}} - {{title}}\n...",
-  "postSetup": "pnpm install"
+  "postSetup": "pnpm install",
+  "startCommand": "claude"
 }
 ```
 
 `claudeMdTemplate` 필드에 `CLAUDE.local.md` 생성 템플릿을
 지정합니다. `lcg init` 시 기본 템플릿이 자동 생성되며,
 이후 직접 수정할 수 있습니다.
+
+`startCommand`는 워크트리 준비 후 실행할 필수 명령입니다.
+예를 들어 `"claude"`, `"open \"$worktree_folder_name\""` 또는
+`"code {{worktreePath}}"`처럼 지정할 수 있습니다. 명령은 worktree
+디렉터리에서 실행됩니다. 값이 비어 있으면 `lcg start`는 실행되지
+않고 설정 오류를 표시합니다.
+
+`startCommand`에서 사용할 수 있는 값:
+
+| 값                         | 설명                              |
+| -------------------------- | --------------------------------- |
+| `$worktree_folder_name`    | worktree 폴더명 (예: `LIN-123`)   |
+| `$worktree_fold_name`      | 위 값의 alias                     |
+| `$worktree_path`           | worktree 전체 경로                |
+| `$issue_id`                | 이슈 ID (예: `LIN-123`)           |
+| `{{worktreeFolderName}}`   | worktree 폴더명                   |
+| `{{worktreePath}}`         | worktree 전체 경로                |
+| `{{issueId}}`              | 이슈 ID                           |
 
 템플릿에서 사용 가능한 변수:
 

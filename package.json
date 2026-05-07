@@ -1,7 +1,7 @@
 {
   "name": "lcg",
   "version": "0.1.0",
-  "description": "Linear + Claude + Git CLI - Automate your development workflow",
+  "description": "Linear + Git worktree CLI - create issue worktrees and run your start command",
   "type": "module",
   "bin": {
     "lcg": "./dist/index.js"

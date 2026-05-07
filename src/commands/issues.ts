@@ -3,8 +3,7 @@ import ora from "ora";
 import { select, Separator } from "@inquirer/prompts";
 import { ensureGlobalConfig, resolveProjectContext } from "../lib/config.js";
 import { initLinearClient, getMyIssues } from "../lib/linear.js";
-import { getWorktreeStatus, getWorktreeDir } from "../lib/git.js";
-import { isClaudeSessionActive } from "../lib/claude.js";
+import { getWorktreeStatus } from "../lib/git.js";
 import { startCommand } from "./start.js";
 import { cleanCommand } from "./clean.js";
 import type { LcgIssue } from "../types/index.js";
@@ -46,22 +45,11 @@ export async function issuesCommand(options: {
     return;
   }
 
-  // Check active worktrees and claude sessions
+  // Check active worktrees
   let activeWorktrees = new Set<string>();
-  const claudeActive = new Set<string>();
   try {
     const statuses = await getWorktreeStatus(repoPath, worktreeDir);
     activeWorktrees = new Set(statuses.map((s) => s.issueId));
-    const checks = await Promise.all(
-      statuses.map(async (s) => {
-        const dir = getWorktreeDir(worktreeDir, s.issueId);
-        const active = await isClaudeSessionActive(dir);
-        return { issueId: s.issueId, active };
-      }),
-    );
-    for (const c of checks) {
-      if (c.active) claudeActive.add(c.issueId);
-    }
   } catch {
     // Ignore
   }
@@ -91,9 +79,7 @@ export async function issuesCommand(options: {
     for (const issue of stateIssues) {
       const priorityColor = PRIORITY_COLORS[issue.priorityLabel] ?? chalk.white;
       let indicator = "";
-      if (claudeActive.has(issue.identifier)) {
-        indicator = chalk.magenta(" ← claude active");
-      } else if (activeWorktrees.has(issue.identifier)) {
+      if (activeWorktrees.has(issue.identifier)) {
         indicator = chalk.cyan(" ← worktree active");
       }
       issueChoices.push({

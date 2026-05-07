@@ -13,7 +13,9 @@ const program = new Command();
 
 program
   .name("lcg")
-  .description("Linear + Claude + Git — Automate your development workflow")
+  .description(
+    "Linear + Git worktree — create issue worktrees and run your start command",
+  )
   .version("0.1.0");
 
 program
@@ -32,11 +34,27 @@ program
 program
   .command("start <issue-id>")
   .description(
-    "Start or resume working on an issue — creates worktree, starts Zellij + Claude",
+    "Start or resume working on an issue — creates worktree and runs the configured command",
   )
   .option(
     "-b, --base [branch]",
     "Base branch for the worktree (interactive picker if no value given)",
+  )
+  .addHelpText(
+    "after",
+    `
+startCommand:
+  Configured in <worktree-root>/.lcg.json and executed in the worktree.
+  Required. Configure it with \`lcg init\` or edit .lcg.json directly.
+
+  Available values:
+    $worktree_folder_name, $worktree_fold_name, $worktree_path, $issue_id
+    {{worktreeFolderName}}, {{worktreePath}}, {{issueId}}
+
+  Examples:
+    "claude"
+    "open \\"$worktree_folder_name\\""
+    "code {{worktreePath}}"`,
   )
   .action(startCommand);
 
@@ -81,11 +99,12 @@ Examples:
   lcg ls                        내 이슈 목록 (현재 팀)
   lcg ls -a                     모든 팀의 내 이슈
   lcg ls -s "In Progress"       특정 상태만 필터
-  lcg start 123                 이슈 작업 시작 (worktree + Zellij + Claude)
+  lcg start 123                 이슈 작업 시작 (worktree + startCommand)
   lcg start 123 --base canary   canary 브랜치 기반으로 시작
   lcg start 123 --base          인터랙티브 브랜치 선택 후 시작
+  startCommand 예시              claude | open "$worktree_folder_name" | code {{worktreePath}}
   lcg sync feat/my-branch       체이닝된 PR을 루트까지 순차 업데이트
-  lcg clean 123                 worktree, 브랜치, Zellij 세션 정리
+  lcg clean 123                 worktree, 브랜치 정리
   lcg cfg                       현재 설정 상태 확인
   lcg cfg -e                    설정 파일 에디터로 열기`,
 );
@@ -94,6 +113,7 @@ program
   .command("_setup <issue-id>", { hidden: true })
   .option("--worktree-dir <dir>", "Worktree root directory")
   .option("--base-branch <branch>", "Base branch override")
+  .option("--start-command <command>", "Command to run after setup")
   .action(setupCommand);
 
 program.parseAsync().catch((error) => {

@@ -3,7 +3,6 @@ import chalk from "chalk";
 import ora from "ora";
 import { resolveIssueId, resolveProjectContext } from "../lib/config.js";
 import { getWorktreeDir, worktreeExists, removeWorktree } from "../lib/git.js";
-import { killZellijSession } from "../lib/zellij.js";
 
 export async function cleanCommand(issueId: string): Promise<void> {
   const { projectConfig, worktreeDir, repoPath } =
@@ -21,7 +20,7 @@ export async function cleanCommand(issueId: string): Promise<void> {
   console.log(chalk.bold(`\nWorktree: ${worktreePath}`));
 
   const proceed = await confirm({
-    message: `Remove worktree, branch, and Zellij session for ${issueId}?`,
+    message: `Remove worktree and branch for ${issueId}?`,
     default: true,
   });
   if (!proceed) {
@@ -29,13 +28,6 @@ export async function cleanCommand(issueId: string): Promise<void> {
     return;
   }
 
-  // 1. Kill Zellij session
-  const zellijKilled = killZellijSession(issueId);
-  if (zellijKilled) {
-    console.log(chalk.green(`Zellij session "${issueId}" killed`));
-  }
-
-  // 2. Remove worktree + branch
   const spinner = ora("Removing worktree and branch...").start();
   try {
     await removeWorktree(repoPath, worktreePath, true);

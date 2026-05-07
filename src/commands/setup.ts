@@ -10,6 +10,8 @@ import {
 } from "../lib/config.js";
 import { initLinearClient, getIssue } from "../lib/linear.js";
 import { createWorktree, getWorktreeDir, getGit } from "../lib/git.js";
+import { requireStartCommand, runStartCommand } from "../lib/start-command.js";
+import type { LcgIssue } from "../types/index.js";
 
 export function renderClaudeMd(
   template: string,
@@ -37,7 +39,12 @@ export function renderClaudeMd(
 
 export async function setupCommand(
   issueId: string,
-  options: { worktreeDir?: string; baseBranch?: string },
+  options: {
+    worktreeDir?: string;
+    baseBranch?: string;
+    startCommand?: string;
+    issue?: LcgIssue;
+  },
 ): Promise<void> {
   const globalConfig = ensureGlobalConfig();
   initLinearClient(globalConfig.linearApiKey);
@@ -47,13 +54,19 @@ export async function setupCommand(
   );
 
   issueId = resolveIssueId(projectConfig, issueId);
+  const startCommand = requireStartCommand(
+    options.startCommand ?? projectConfig.startCommand,
+  );
 
   const baseBranch = options.baseBranch ?? projectConfig.baseBranch;
 
   // 1. Fetch issue
-  const spinner = ora(`Fetching issue ${issueId}...`).start();
-  const issue = await getIssue(issueId);
-  spinner.succeed(`Found: ${issue.identifier} - ${issue.title}`);
+  let issue = options.issue;
+  if (!issue) {
+    const spinner = ora(`Fetching issue ${issueId}...`).start();
+    issue = await getIssue(issueId);
+    spinner.succeed(`Found: ${issue.identifier} - ${issue.title}`);
+  }
 
   // 2. Create worktree
   const worktreePath = getWorktreeDir(worktreeDir, issueId);
@@ -128,10 +141,7 @@ export async function setupCommand(
     );
   }
 
-  // 5. Start Claude session
-  console.log(chalk.cyan(`\nStarting Claude in: ${worktreePath}\n`));
-  await execaCommand("claude", {
-    cwd: worktreePath,
-    stdio: "inherit",
-  });
+  // 5. Run configured start command
+  console.log(chalk.cyan(`\nRunning start command in: ${worktreePath}\n`));
+  await runStartCommand(startCommand, issueId, worktreePath);
 }

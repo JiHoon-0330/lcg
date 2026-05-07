@@ -7,12 +7,8 @@ import {
 } from "../lib/config.js";
 import { initLinearClient, getIssue, updateIssueState } from "../lib/linear.js";
 import { worktreeExists, getWorktreeDir } from "../lib/git.js";
-import {
-  startZellijWithClaude,
-  attachZellijSession,
-  zellijSessionExists,
-  startZellijInWorktree,
-} from "../lib/zellij.js";
+import { requireStartCommand, runStartCommand } from "../lib/start-command.js";
+import { setupCommand } from "./setup.js";
 
 export async function startCommand(
   issueId: string,
@@ -22,28 +18,17 @@ export async function startCommand(
   initLinearClient(globalConfig.linearApiKey);
 
   const { projectConfig, worktreeDir } = await resolveProjectContext();
+  const startCommand = requireStartCommand(projectConfig.startCommand);
 
   issueId = resolveIssueId(projectConfig, issueId);
 
   const worktreePath = getWorktreeDir(worktreeDir, issueId);
-  const sessionExists = zellijSessionExists(issueId);
   const wtExists = await worktreeExists(worktreePath);
 
-  // State B, C: session exists → attach
-  if (sessionExists) {
-    console.log(chalk.cyan(`\nAttaching to Zellij session: ${issueId}\n`));
-    attachZellijSession(issueId);
-    return;
-  }
-
-  // State D: worktree exists but no session → start zellij with claude
+  // Existing worktree → run configured start command there.
   if (wtExists) {
-    console.log(
-      chalk.cyan(
-        `\nStarting Zellij session in existing worktree: ${issueId}\n`,
-      ),
-    );
-    startZellijInWorktree(worktreePath, issueId);
+    console.log(chalk.cyan(`\nRunning start command in: ${worktreePath}\n`));
+    await runStartCommand(startCommand, issueId, worktreePath);
     return;
   }
 
@@ -89,6 +74,10 @@ export async function startCommand(
     baseBranch = await selectBranch(worktreeDir, projectConfig.baseBranch);
   }
 
-  console.log(chalk.cyan(`\nStarting Zellij session: ${issueId}\n`));
-  startZellijWithClaude(issueId, issueId, worktreeDir, baseBranch);
+  await setupCommand(issueId, {
+    worktreeDir,
+    baseBranch,
+    startCommand,
+    issue,
+  });
 }
